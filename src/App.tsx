@@ -187,7 +187,7 @@ const CronogramaProyecto: React.FC = () => {
   
   const tareasFiltradas = filtroEquipo === 'Todos' 
     ? tareas 
-    : tareas.filter((t, index) => {
+    : tareas.filter((t,) => {
         // Si es un header, verificar si coincide con el filtro
         if (t.tipo === 'header') {
           return t.nombre.includes(filtroEquipo);
