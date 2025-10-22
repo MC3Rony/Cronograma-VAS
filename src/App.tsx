@@ -316,7 +316,7 @@ const CronogramaProyecto: React.FC = () => {
               className="bg-gradient-to-r from-green-500 to-green-600 h-4 rounded-full transition-all duration-500"
               style={{ width: `${progreso}%` }}
             >
-              <span className="flex items-center justify-center h-full text-xs font-bold text-white">{progreso} %</span>
+              <span className="flex items-center justify-center h-full text-xs font-bold text-white"> {progreso}%</span>
             </div>
           </div>
         </div>
