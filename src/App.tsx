@@ -79,11 +79,11 @@ const CronogramaProyecto: React.FC = () => {
     try {
       const docRef = doc(db, 'cronograma', 'tareas');
       await setDoc(docRef, { lista: nuevasTareas });
-      setMensaje('✓ Guardado en la nube');
+      setMensaje('Guardado en la nube');
       setTimeout(() => setMensaje(''), 3000);
     } catch (error) {
       console.error('Error al guardar:', error);
-      setMensaje('❌ Error al guardar');
+      setMensaje('Error al guardar');
       setTimeout(() => setMensaje(''), 3000);
     }
   };
@@ -236,7 +236,7 @@ const CronogramaProyecto: React.FC = () => {
 
   const produccion = calcularFechaProduccion();
 
-  const equipos = ['Todos', 'EQUIPO FTS', 'EQUIPO AUMENTA', 'QA/DEPLOYMENT'];
+  const equipos = ['Todos', 'EQUIPO FTS', 'EQUIPO AUMENTA', 'QA/DEPLOYMENT','MS/FTS'];
   
   const tareasFiltradas = filtroEquipo === 'Todos' 
     ? tareas 
@@ -316,7 +316,7 @@ const CronogramaProyecto: React.FC = () => {
               className="bg-gradient-to-r from-green-500 to-green-600 h-4 rounded-full transition-all duration-500"
               style={{ width: `${progreso}%` }}
             >
-              <span className="flex items-center justify-center h-full text-xs font-bold text-white">{progreso}%</span>
+              <span className="flex items-center justify-center h-full text-xs font-bold text-white">{progreso} %</span>
             </div>
           </div>
         </div>
