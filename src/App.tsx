@@ -143,7 +143,7 @@ const CronogramaProyecto: React.FC = () => {
     if (nuevoTipo === 'header') {
       nuevoItem = { id: nuevoId, tipo: 'header', nombre: 'Nuevo Equipo', info: '' };
     } else if (nuevoTipo === 'milestone') {
-      nuevoItem = { id: nuevoId, tipo: 'milestone', nombre: '🎯 Nuevo Milestone', fecha: '' };
+      nuevoItem = { id: nuevoId, tipo: 'milestone', nombre: 'Nuevo Milestone', fecha: '' };
     } else {
       nuevoItem = {
         id: nuevoId,
@@ -283,27 +283,9 @@ const CronogramaProyecto: React.FC = () => {
                 <h1 className="text-3xl font-bold">Cronograma del Proyecto</h1>
               </div>
               <p className="text-blue-100">Fecha actual: <strong>{formatearFechaCompleta(fechaActual)}</strong></p>
-              <p className="text-blue-200 text-sm mt-1">☁️ Sincronizado con Firebase en tiempo real</p>
+              <p className="text-blue-200 text-sm mt-1">Sincronizado con Firebase</p>
             </div>
           </div>
-        </div>
-
-        {/* Alertas de Producción */}
-        <div className="bg-white p-6 shadow-lg border-x border-gray-200">
-          {produccion.diasRetraso > 0 ? (
-            <div className="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
-              <h3 className="text-lg font-bold text-red-800">⚠️ Fecha de Producción Ajustada</h3>
-              <p className="text-red-700 mt-1">Fecha original: <strong>{formatearFechaCompleta(produccion.original)}</strong></p>
-              <p className="text-red-900 mt-1 text-lg font-bold">Nueva fecha: <strong>{formatearFechaCompleta(produccion.ajustada)}</strong></p>
-              <p className="text-red-600 mt-2 text-sm">Retraso acumulado: <strong>{produccion.diasRetraso} días</strong></p>
-            </div>
-          ) : (
-            <div className="mb-4 p-4 bg-green-50 border-l-4 border-green-500 rounded-r-lg">
-              <h3 className="text-lg font-bold text-green-800">✅ Producción en Tiempo</h3>
-              <p className="text-green-700 mt-1">Fecha: <strong>{formatearFechaCompleta(produccion.original)}</strong></p>
-            </div>
-          )}
-
           {/* Estadísticas */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
             <div className="bg-blue-50 p-4 rounded-lg text-center">
@@ -390,9 +372,9 @@ const CronogramaProyecto: React.FC = () => {
                 onChange={(e) => setNuevoTipo(e.target.value as any)}
                 className="border border-gray-300 px-3 py-2 rounded"
               >
-                <option value="tarea">📋 Tarea</option>
-                <option value="header">📁 Encabezado/Equipo</option>
-                <option value="milestone">🎯 Milestone</option>
+                <option value="tarea">Tarea</option>
+                <option value="header">Encabezado</option>
+                <option value="milestone">Milestone</option>
               </select>
               <button 
                 onClick={agregarNuevoItem}
@@ -622,7 +604,7 @@ const CronogramaProyecto: React.FC = () => {
                       <tr className={bgColor}>
                         <td colSpan={8} className="p-4 border border-gray-200 bg-yellow-50">
                           <div className="mb-2">
-                            <label className="block text-sm font-bold text-gray-700 mb-1">📝 Comentarios / Notas:</label>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Comentarios / Notas:</label>
                             <textarea
                               value={tarea.comentarios || ''}
                               onChange={(e) => actualizarTarea(tarea.id, 'comentarios', e.target.value)}
@@ -631,7 +613,7 @@ const CronogramaProyecto: React.FC = () => {
                             />
                           </div>
                           <div className="text-xs text-gray-600">
-                            💡 Los comentarios se guardan automáticamente en Firebase
+                            Los comentarios se guardan automáticamente en Firebase
                           </div>
                         </td>
                       </tr>
@@ -641,38 +623,6 @@ const CronogramaProyecto: React.FC = () => {
               })}
             </tbody>
           </table>
-        </div>
-
-        {/* Instrucciones */}
-        <div className="bg-white p-6 rounded-lg shadow-lg mt-6">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">📋 Guía de Uso</h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <h3 className="font-bold text-blue-600 mb-2">🎯 Acciones Principales</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li>✅ <strong>Agregar:</strong> Crea tareas, equipos o milestones</li>
-                <li>✅ <strong>Editar:</strong> Click en el ícono ✏️ para editar nombres</li>
-                <li>✅ <strong>Eliminar:</strong> Click en 🗑️ para borrar elementos</li>
-                <li>✅ <strong>Notas:</strong> Click en ▼ para agregar comentarios</li>
-                <li>✅ <strong>Filtrar:</strong> Selecciona un equipo específico</li>
-                <li>✅ <strong>Exportar/Importar:</strong> Respaldo en JSON</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-bold text-red-600 mb-2">⏱️ Lógica de Retrasos</h3>
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li>🔴 <strong>Retrasada:</strong> Cuenta desde fecha de INICIO</li>
-                <li>🔵 <strong>En Curso:</strong> Cuenta después de fecha de ENTREGA/FIN</li>
-                <li>🟢 <strong>Finalizada:</strong> No cuenta retraso</li>
-                <li>⚪ <strong>Pendiente:</strong> No cuenta retraso</li>
-              </ul>
-            </div>
-          </div>
-          <div className="mt-4 p-3 bg-blue-50 border-l-4 border-blue-500 rounded">
-            <p className="text-sm text-blue-800">
-              ☁️ <strong>Todo se guarda automáticamente en Firebase.</strong> Los cambios se sincronizan en tiempo real entre todos los dispositivos.
-            </p>
-          </div>
         </div>
       </div>
     </div>
