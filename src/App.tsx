@@ -48,12 +48,25 @@ const FilaArrastrable: React.FC<{ id: number; children: React.ReactNode }> = ({ 
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-    cursor: 'grab',
   };
 
+  // Convertir children a array
+  const childrenArray = React.Children.toArray(children);
+
   return (
-    <tr ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      {children}
+    <tr ref={setNodeRef} style={style} {...attributes}>
+      {childrenArray.map((child, index) => {
+        // Solo la primera celda tendrá el drag handler
+        if (index === 0 && React.isValidElement(child)) {
+          const childProps = child.props as Record<string, any>;
+          return React.cloneElement(child, {
+            ...childProps,
+            ...listeners,
+            style: { cursor: 'grab', ...(childProps.style || {}) }
+          } as any);
+        }
+        return child;
+      })}
     </tr>
   );
 };
