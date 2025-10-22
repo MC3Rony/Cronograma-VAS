@@ -33,7 +33,6 @@ interface Tarea {
   fecha?: string;
   comentarios?: string;
 }
-
 // Componente para hacer las filas arrastrables
 const FilaArrastrable: React.FC<{ id: number; children: React.ReactNode }> = ({ id, children }) => {
   const {
@@ -72,19 +71,18 @@ const CronogramaProyecto: React.FC = () => {
   const [mensaje, setMensaje] = useState('');
   const [filtroEquipo, setFiltroEquipo] = useState('Todos');
   const [tareaExpandida, setTareaExpandida] = useState<number | null>(null);
+  // Configurar sensores para drag & drop
+const sensors = useSensors(
+  useSensor(PointerSensor),
+  useSensor(KeyboardSensor, {
+    coordinateGetter: sortableKeyboardCoordinates,
+  })
+);
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [editandoNombre, setEditandoNombre] = useState('');
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [nuevoTipo, setNuevoTipo] = useState<'header' | 'tarea' | 'milestone'>('tarea');
   const [cargando, setCargando] = useState(true);
-
-  // Configurar sensores para drag & drop
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
 
   // Obtener fecha desde API
   useEffect(() => {
@@ -186,26 +184,20 @@ const CronogramaProyecto: React.FC = () => {
     await guardarEnFirebase(nuevasTareas);
   };
 
-  const eliminarItem = async (id: number) => {
-    const nuevasTareas = tareas.filter(tarea => tarea.id !== id);
-    setTareas(nuevasTareas);
-    await guardarEnFirebase(nuevasTareas);
-  };
-
-  const agregarNuevoItem = async (tipo: 'header' | 'tarea' | 'milestone') => {
+  const agregarNuevoItem = async () => {
     const nuevoId = Math.max(...tareas.map(t => t.id), 0) + 1;
     let nuevoItem: Tarea;
 
-    if (tipo === 'header') {
+    if (nuevoTipo === 'header') {
       nuevoItem = { id: nuevoId, tipo: 'header', nombre: 'Nuevo Equipo', info: '' };
-    } else if (tipo === 'milestone') {
+    } else if (nuevoTipo === 'milestone') {
       nuevoItem = { id: nuevoId, tipo: 'milestone', nombre: 'Nuevo Milestone', fecha: '' };
     } else {
       nuevoItem = {
         id: nuevoId,
         tipo: 'tarea',
         nombre: 'Nueva Tarea',
-        duracion: '',
+        duracion: '5 días',
         inicio: '',
         fin: '',
         entrega: '',
@@ -220,24 +212,34 @@ const CronogramaProyecto: React.FC = () => {
     setMostrarFormulario(false);
   };
 
+  const eliminarItem = async (id: number) => {
+    if (window.confirm('¿Estás seguro de eliminar este elemento?')) {
+      const nuevasTareas = tareas.filter(t => t.id !== id);
+      setTareas(nuevasTareas);
+      await guardarEnFirebase(nuevasTareas);
+    }
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+  const { active, over } = event;
+
+  if (over && active.id !== over.id) {
+    const oldIndex = tareas.findIndex((t) => t.id === active.id);
+    const newIndex = tareas.findIndex((t) => t.id === over.id);
+
+    const nuevasTareas = arrayMove(tareas, oldIndex, newIndex);
+    setTareas(nuevasTareas);
+    await guardarEnFirebase(nuevasTareas);
+  }
+};
+
   const guardarEdicion = async (id: number) => {
-    const nuevasTareas = tareas.map(tarea => 
+    const nuevasTareas = tareas.map(tarea =>
       tarea.id === id ? { ...tarea, nombre: editandoNombre } : tarea
     );
     setTareas(nuevasTareas);
     await guardarEnFirebase(nuevasTareas);
     setEditandoId(null);
-    setEditandoNombre('');
-  };
-
-  const getColorEstado = (estado?: string) => {
-    switch (estado) {
-      case 'Finalizada': return '#27ae60';
-      case 'En Curso': return '#3498db';
-      case 'Retrasada': return '#e74c3c';
-      case 'Por definir': return '#95a5a6';
-      default: return '#f39c12';
-    }
   };
 
   const exportarJSON = () => {
@@ -246,388 +248,452 @@ const CronogramaProyecto: React.FC = () => {
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `cronograma_${new Date().toISOString().split('T')[0]}.json`;
+    link.download = 'cronograma-backup.json';
     link.click();
-    URL.revokeObjectURL(url);
   };
 
-  const importarJSON = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const importarJSON = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const contenido = e.target?.result as string;
-        const tareasImportadas = JSON.parse(contenido);
-        setTareas(tareasImportadas);
-        await guardarEnFirebase(tareasImportadas);
-        setMensaje('Datos importados correctamente');
-        setTimeout(() => setMensaje(''), 3000);
-      } catch (error) {
-        setMensaje('Error al importar archivo');
-        setTimeout(() => setMensaje(''), 3000);
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (!over || active.id === over.id) {
-      return;
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = JSON.parse(e.target?.result as string);
+          setTareas(data);
+          await guardarEnFirebase(data);
+          setMensaje('✓ Datos importados');
+          setTimeout(() => setMensaje(''), 3000);
+        } catch (error) {
+          alert('Error al importar el archivo');
+        }
+      };
+      reader.readAsText(file);
     }
-
-    const oldIndex = tareas.findIndex((tarea) => tarea.id === active.id);
-    const newIndex = tareas.findIndex((tarea) => tarea.id === over.id);
-    
-    const nuevasTareas = arrayMove(tareas, oldIndex, newIndex);
-    setTareas(nuevasTareas);
-    await guardarEnFirebase(nuevasTareas);
   };
 
+  const getColorEstado = (estado?: string): string => {
+    const colores: Record<string, string> = {
+      'Pendiente': '#95a5a6',
+      'En Curso': '#3498db',
+      'Finalizada': '#27ae60',
+      'Retrasada': '#e74c3c',
+      'Por definir': '#f39c12'
+    };
+    return colores[estado || 'Pendiente'] || '#95a5a6';
+  };
+
+  const calcularFechaProduccion = (): { original: Date; ajustada: Date; diasRetraso: number } => {
+    const fechaProduccionOriginal = new Date('2026-03-03');
+    let totalDiasRetraso = 0;
+    tareas.forEach(tarea => {
+      if (tarea.tipo === 'tarea' && tarea.estado !== 'Finalizada') {
+        totalDiasRetraso += calcularRetraso(tarea);
+      }
+    });
+    const fechaAjustada = new Date(fechaProduccionOriginal);
+    fechaAjustada.setDate(fechaAjustada.getDate() + totalDiasRetraso);
+    return { original: fechaProduccionOriginal, ajustada: fechaAjustada, diasRetraso: totalDiasRetraso };
+  };
+
+  const produccion = calcularFechaProduccion();
+
+  const equipos = ['Todos', 'EQUIPO FTS', 'EQUIPO AUMENTA', 'QA/DEPLOYMENT','MS/FTS'];
+  
   const tareasFiltradas = filtroEquipo === 'Todos' 
     ? tareas 
-    : tareas.filter(t => {
-        if (t.tipo === 'header') {
-          return t.nombre.includes(filtroEquipo);
+    : tareas.filter((t) => {
+        if (t.tipo === 'header') return t.nombre.includes(filtroEquipo);
+        if (t.tipo === 'tarea' || t.tipo === 'milestone') {
+          for (let i = tareas.indexOf(t) - 1; i >= 0; i--) {
+            if (tareas[i].tipo === 'header') return tareas[i].nombre.includes(filtroEquipo);
+          }
         }
-        const headerAnterior = tareas.slice(0, tareas.indexOf(t)).reverse().find(h => h.tipo === 'header');
-        return headerAnterior?.nombre.includes(filtroEquipo);
+        return false;
       });
 
-  const equipos = ['Todos', ...Array.from(new Set(tareas.filter(t => t.tipo === 'header').map(t => t.nombre)))];
+  const estadisticas = {
+    total: tareas.filter(t => t.tipo === 'tarea').length,
+    finalizadas: tareas.filter(t => t.tipo === 'tarea' && t.estado === 'Finalizada').length,
+    enCurso: tareas.filter(t => t.tipo === 'tarea' && t.estado === 'En Curso').length,
+    retrasadas: tareas.filter(t => t.tipo === 'tarea' && t.estado === 'Retrasada').length,
+    pendientes: tareas.filter(t => t.tipo === 'tarea' && t.estado === 'Pendiente').length,
+  };
+
+  const progreso = Math.round((estadisticas.finalizadas / estadisticas.total) * 100) || 0;
 
   if (cargando) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <div className="text-xl font-bold">Cargando cronograma...</div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando datos desde Firebase...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
+    <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Calendar className="text-blue-600" size={32} />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800">Cronograma de Proyecto</h1>
-                <p className="text-sm text-gray-600">{formatearFechaCompleta(fechaActual)}</p>
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-6 rounded-t-lg shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <Calendar size={32} />
+                <h1 className="text-3xl font-bold">Cronograma del Proyecto</h1>
               </div>
+              <p className="text-blue-100">Fecha: <strong>{formatearFechaCompleta(fechaActual)}</strong></p>
             </div>
-            <div className="flex gap-2">
-              <select
-                value={filtroEquipo}
-                onChange={(e) => setFiltroEquipo(e.target.value)}
-                className="border border-gray-300 rounded px-3 py-2 text-sm"
-              >
-                {equipos.map(equipo => (
-                  <option key={equipo} value={equipo}>{equipo}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => setMostrarFormulario(!mostrarFormulario)}
-                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded flex items-center gap-2"
-              >
-                <Plus size={20} />
-                Agregar
-              </button>
-              <button
-                onClick={exportarJSON}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2"
-              >
-                <Download size={20} />
-                Exportar
-              </button>
-              <label className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded flex items-center gap-2 cursor-pointer">
-                <Upload size={20} />
-                Importar
-                <input type="file" accept=".json" onChange={importarJSON} className="hidden" />
-              </label>
+          </div>
+          {/* Estadísticas */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+            <div className="bg-blue-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-blue-600">{estadisticas.total}</div>
+              <div className="text-sm text-gray-600">Total</div>
+            </div>
+            <div className="bg-green-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-green-600">{estadisticas.finalizadas}</div>
+              <div className="text-sm text-gray-600">Finalizadas</div>
+            </div>
+            <div className="bg-blue-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-blue-600">{estadisticas.enCurso}</div>
+              <div className="text-sm text-gray-600">En Curso</div>
+            </div>
+            <div className="bg-red-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-red-600">{estadisticas.retrasadas}</div>
+              <div className="text-sm text-gray-600">Retrasadas</div>
+            </div>
+            <div className="bg-gray-50 p-4 rounded-lg text-center">
+              <div className="text-2xl font-bold text-gray-600">{estadisticas.pendientes}</div>
+              <div className="text-sm text-gray-600">Pendientes</div>
             </div>
           </div>
 
+          {/* Barra de progreso */}
+          <div className="w-full bg-gray-200 rounded-full h-4">
+            <div 
+              className="bg-gradient-to-r from-green-500 to-green-600 h-4 rounded-full transition-all duration-500"
+              style={{ width: `${progreso}%` }}
+            >
+              <span className="flex items-center justify-center h-full text-xs font-bold text-white"> {progreso}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Controles */}
+        <div className="bg-white p-4 shadow-lg border-x border-gray-200 flex flex-wrap gap-3 items-center">
+          <button 
+            onClick={() => setMostrarFormulario(!mostrarFormulario)}
+            className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-semibold"
+          >
+            <Plus size={18} />
+            Agregar
+          </button>
+
+          <button 
+            onClick={exportarJSON}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold"
+          >
+            <Download size={18} />
+            Exportar
+          </button>
+
+          <label className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-semibold cursor-pointer">
+            <Upload size={18} />
+            Importar
+            <input type="file" accept=".json" onChange={importarJSON} className="hidden" />
+          </label>
+
+          <select 
+            value={filtroEquipo}
+            onChange={(e) => setFiltroEquipo(e.target.value)}
+            className="border border-gray-300 px-4 py-2 rounded-lg font-semibold"
+          >
+            {equipos.map(equipo => (
+              <option key={equipo} value={equipo}>{equipo}</option>
+            ))}
+          </select>
+
           {mensaje && (
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+            <div className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold animate-pulse">
               {mensaje}
             </div>
           )}
+        </div>
 
-          {mostrarFormulario && (
-            <div className="bg-blue-50 border border-blue-300 rounded p-4 mb-4">
-              <h3 className="font-bold mb-2">Agregar nuevo elemento:</h3>
-              <div className="flex gap-2">
-                <select
-                  value={nuevoTipo}
-                  onChange={(e) => setNuevoTipo(e.target.value as any)}
-                  className="border border-gray-300 rounded px-3 py-2"
-                >
-                  <option value="header">Equipo (Header)</option>
-                  <option value="tarea">Tarea</option>
-                  <option value="milestone">Milestone</option>
-                </select>
-                <button
-                  onClick={() => agregarNuevoItem(nuevoTipo)}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
-                >
-                  Crear
-                </button>
-                <button
-                  onClick={() => setMostrarFormulario(false)}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
-                >
-                  Cancelar
-                </button>
-              </div>
+        {/* Formulario agregar */}
+        {mostrarFormulario && (
+          <div className="bg-yellow-50 p-4 border-x border-gray-200 shadow-lg">
+            <h3 className="font-bold mb-3">Agregar nuevo elemento:</h3>
+            <div className="flex gap-3">
+              <select 
+                value={nuevoTipo}
+                onChange={(e) => setNuevoTipo(e.target.value as any)}
+                className="border border-gray-300 px-3 py-2 rounded"
+              >
+                <option value="tarea">Tarea</option>
+                <option value="header">Encabezado</option>
+                <option value="milestone">Milestone</option>
+              </select>
+              <button 
+                onClick={agregarNuevoItem}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-semibold"
+              >
+                Crear
+              </button>
+              <button 
+                onClick={() => setMostrarFormulario(false)}
+                className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
+              >
+                Cancelar
+              </button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <DndContext 
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext 
-              items={tareasFiltradas.map(t => t.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gray-700 text-white">
-                    <th className="p-3 text-left border border-gray-600">Tarea / Equipo</th>
-                    <th className="p-3 text-center border border-gray-600" style={{ width: '100px' }}>Duración</th>
-                    <th className="p-3 text-center border border-gray-600" style={{ width: '150px' }}>Inicio</th>
-                    <th className="p-3 text-center border border-gray-600" style={{ width: '150px' }}>Fin</th>
-                    <th className="p-3 text-center border border-gray-600" style={{ width: '150px' }}>Entrega</th>
-                    <th className="p-3 text-center border border-gray-600" style={{ width: '130px' }}>Estado</th>
-                    <th className="p-3 text-center border border-gray-600" style={{ width: '80px' }}>Retraso</th>
-                    <th className="p-3 text-center border border-gray-600" style={{ width: '120px' }}>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tareasFiltradas.map((tarea) => {
-                    if (tarea.tipo === 'header') {
-                      return (
-                        <FilaArrastrable key={tarea.id} id={tarea.id}>
-                          <td colSpan={6} className="p-3 font-bold bg-blue-600 text-white border border-gray-300">
-                            {editandoId === tarea.id ? (
-                              <input
-                                type="text"
-                                value={editandoNombre}
-                                onChange={(e) => setEditandoNombre(e.target.value)}
-                                className="w-full bg-white text-black px-2 py-1 rounded"
-                                onKeyPress={(e) => e.key === 'Enter' && guardarEdicion(tarea.id)}
-                              />
-                            ) : (
-                              <>{tarea.nombre} {tarea.info && `- ${tarea.info}`}</>
-                            )}
-                          </td>
-                          <td colSpan={2} className="p-2 bg-blue-600 border border-gray-300 text-center">
-                            {editandoId === tarea.id ? (
-                              <button onClick={() => guardarEdicion(tarea.id)} className="bg-green-500 px-3 py-1 rounded mr-2">
-                                <Save size={16} />
-                              </button>
-                            ) : (
-                              <button 
-                                onClick={() => { setEditandoId(tarea.id); setEditandoNombre(tarea.nombre); }}
-                                className="bg-yellow-500 hover:bg-yellow-600 px-3 py-1 rounded mr-2"
-                              >
-                                <Edit2 size={16} />
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => eliminarItem(tarea.id)}
-                              className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
-                        </FilaArrastrable>
-                      );
-                    }
-
-                    if (tarea.tipo === 'milestone') {
-                      const fechaMostrar = tarea.fecha 
-                        ? formatearFecha(tarea.fecha)
-                        : tarea.fecha;
-                      
-                      return (
-                        <FilaArrastrable key={tarea.id} id={tarea.id}>
-                          <td colSpan={6} className="p-3 font-bold border border-gray-300">
-                            {editandoId === tarea.id ? (
-                              <input
-                                type="text"
-                                value={editandoNombre}
-                                onChange={(e) => setEditandoNombre(e.target.value)}
-                                className="w-full bg-white text-black px-2 py-1 rounded"
-                                onKeyPress={(e) => e.key === 'Enter' && guardarEdicion(tarea.id)}
-                              />
-                            ) : (
-                              <>{tarea.nombre} - {fechaMostrar}</>
-                            )}
-                          </td>
-                          <td colSpan={2} className="p-2 border border-gray-300 text-center">
-                            {editandoId === tarea.id ? (
-                              <button onClick={() => guardarEdicion(tarea.id)} className="bg-green-500 px-3 py-1 rounded mr-2">
-                                <Save size={16} />
-                              </button>
-                            ) : (
-                              <button 
-                                onClick={() => { setEditandoId(tarea.id); setEditandoNombre(tarea.nombre); }}
-                                className="bg-yellow-500 hover:bg-yellow-600 px-3 py-1 rounded mr-2"
-                              >
-                                <Edit2 size={16} />
-                              </button>
-                            )}
-                            <button 
-                              onClick={() => eliminarItem(tarea.id)}
-                              className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
-                        </FilaArrastrable>
-                      );
-                    }
-
-                    const retraso = calcularRetraso(tarea);
-                    const tareaIndex = tareas.findIndex(t => t.id === tarea.id);
-                    const bgColor = tareaIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white';
-                    const estaExpandida = tareaExpandida === tarea.id;
-
-                    return (
-                      <React.Fragment key={tarea.id}>
-                        <FilaArrastrable id={tarea.id}>
-                          <td className={`p-3 border border-gray-200 pl-8 ${bgColor}`}>
-                            {editandoId === tarea.id ? (
-                              <input
-                                type="text"
-                                value={editandoNombre}
-                                onChange={(e) => setEditandoNombre(e.target.value)}
-                                className="w-full border border-gray-300 px-2 py-1 rounded"
-                                onKeyPress={(e) => e.key === 'Enter' && guardarEdicion(tarea.id)}
-                              />
-                            ) : (
-                              tarea.nombre
-                            )}
-                          </td>
-                          <td className={`p-2 border border-gray-200 text-center ${bgColor}`}>
-                            <input
-                              type="text"
-                              value={tarea.duracion || ''}
-                              onChange={(e) => actualizarTarea(tarea.id, 'duracion', e.target.value)}
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs text-center"
-                              placeholder="5 días"
-                            />
-                          </td>
-                          <td className={`p-2 border border-gray-200 ${bgColor}`}>
-                            <input 
-                              type="date"
-                              value={tarea.inicio || ''}
-                              onChange={(e) => actualizarTarea(tarea.id, 'inicio', e.target.value)}
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
-                            />
-                            <div className="text-xs text-gray-600 mt-1">{formatearFecha(tarea.inicio)}</div>
-                          </td>
-                          <td className={`p-2 border border-gray-200 ${bgColor}`}>
-                            <input 
-                              type="date"
-                              value={tarea.fin || ''}
-                              onChange={(e) => actualizarTarea(tarea.id, 'fin', e.target.value)}
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
-                            />
-                            <div className="text-xs text-gray-600 mt-1">{formatearFecha(tarea.fin)}</div>
-                          </td>
-                          <td className={`p-2 border border-gray-200 ${bgColor}`}>
-                            <input 
-                              type="date"
-                              value={tarea.entrega || ''}
-                              onChange={(e) => actualizarTarea(tarea.id, 'entrega', e.target.value)}
-                              className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
-                            />
-                            <div className="text-xs text-gray-600 mt-1">{formatearFecha(tarea.entrega)}</div>
-                          </td>
-                          <td className={`p-2 border border-gray-200 text-center ${bgColor}`}>
-                            <select
-                              value={tarea.estado}
-                              onChange={(e) => actualizarTarea(tarea.id, 'estado', e.target.value as Tarea['estado'])}
-                              style={{ backgroundColor: getColorEstado(tarea.estado) }}
-                              className="w-full text-white font-bold rounded-full px-2 py-1 text-xs cursor-pointer"
-                            >
-                              <option value="Pendiente">Pendiente</option>
-                              <option value="En Curso">En Curso</option>
-                              <option value="Finalizada">Finalizada</option>
-                              <option value="Retrasada">Retrasada</option>
-                              <option value="Por definir">Por definir</option>
-                            </select>
-                          </td>
-                          <td className={`p-3 border border-gray-200 text-center font-bold text-sm ${bgColor}`} style={{ color: retraso > 0 ? '#e74c3c' : '#666' }}>
-                            {retraso > 0 ? `${retraso} días` : '-'}
-                          </td>
-                          <td className={`p-2 border border-gray-200 text-center ${bgColor}`}>
-                            <div className="flex gap-1 justify-center">
-                              {editandoId === tarea.id ? (
-                                <button
-                                  onClick={() => guardarEdicion(tarea.id)}
-                                  className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
-                                >
-                                  <Save size={14} />
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => { setEditandoId(tarea.id); setEditandoNombre(tarea.nombre); }}
-                                  className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs"
-                                >
-                                  <Edit2 size={14} />
-                                </button>
-                              )}
-                              <button
-                                onClick={() => setTareaExpandida(estaExpandida ? null : tarea.id)}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
-                              >
-                                {estaExpandida ? '▲' : '▼'}
-                              </button>
-                              <button
-                                onClick={() => eliminarItem(tarea.id)}
-                                className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </td>
-                        </FilaArrastrable>
-                        {estaExpandida && (
-                          <tr className={bgColor}>
-                            <td colSpan={8} className="p-4 border border-gray-200 bg-yellow-50">
-                              <div className="mb-2">
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Comentarios / Notas:</label>
-                                <textarea
-                                  value={tarea.comentarios || ''}
-                                  onChange={(e) => actualizarTarea(tarea.id, 'comentarios', e.target.value)}
-                                  placeholder="Escribe comentarios, notas o detalles sobre esta tarea..."
-                                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm h-24 resize-none"
-                                />
-                              </div>
-                              <div className="text-xs text-gray-600">
-                                Los comentarios se guardan automáticamente en Firebase
-                              </div>
-                            </td>
-                          </tr>
+        {/* Tabla */}
+<div className="bg-white shadow-lg rounded-b-lg overflow-hidden border-x border-b border-gray-200">
+  <DndContext 
+    sensors={sensors}
+    collisionDetection={closestCenter}
+    onDragEnd={handleDragEnd}
+  >
+    <SortableContext 
+      items={tareasFiltradas.map(t => t.id)}
+      strategy={verticalListSortingStrategy}
+    >
+         <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-gray-800 text-white">
+                <th className="p-3 text-left border-r border-gray-700">Tarea / Equipo</th>
+                <th className="p-3 text-center border-r border-gray-700" style={{ width: '100px' }}>Duración</th>
+                <th className="p-3 text-center border-r border-gray-700" style={{ width: '140px' }}>Inicio</th>
+                <th className="p-3 text-center border-r border-gray-700" style={{ width: '140px' }}>Fin</th>
+                <th className="p-3 text-center border-r border-gray-700" style={{ width: '140px' }}>Entrega</th>
+                <th className="p-3 text-center border-r border-gray-700" style={{ width: '120px' }}>Estado</th>
+                <th className="p-3 text-center border-r border-gray-700" style={{ width: '80px' }}>Retraso</th>
+                <th className="p-3 text-center" style={{ width: '120px' }}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tareasFiltradas.map((tarea) => {
+                if (tarea.tipo === 'header') {
+                  return (
+                    <FilaArrastrable key={tarea.id} id={tarea.id}>
+                      <td colSpan={6} className="p-3 font-bold bg-blue-600 text-white border border-gray-300">
+                        {editandoId === tarea.id ? (
+                          <input
+                            type="text"
+                            value={editandoNombre}
+                            onChange={(e) => setEditandoNombre(e.target.value)}
+                            className="w-full bg-white text-black px-2 py-1 rounded"
+                            onKeyPress={(e) => e.key === 'Enter' && guardarEdicion(tarea.id)}
+                          />
+                        ) : (
+                          <>{tarea.nombre} {tarea.info && `- ${tarea.info}`}</>
                         )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </SortableContext>
-          </DndContext>
-        </div>
+                      </td>
+                      <td colSpan={2} className="p-2 bg-blue-600 border border-gray-300 text-center">
+                        {editandoId === tarea.id ? (
+                          <button onClick={() => guardarEdicion(tarea.id)} className="bg-green-500 px-3 py-1 rounded mr-2">
+                            <Save size={16} />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => { setEditandoId(tarea.id); setEditandoNombre(tarea.nombre); }}
+                            className="bg-yellow-500 hover:bg-yellow-600 px-3 py-1 rounded mr-2"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => eliminarItem(tarea.id)}
+                          className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </FilaArrastrable>
+                  );
+                }
+
+                if (tarea.tipo === 'milestone') {
+                  const fechaMostrar = tarea.fecha 
+                    ? formatearFecha(tarea.fecha)
+                    : tarea.fecha;
+                  
+                  return (
+                    <FilaArrastrable key={tarea.id} id={tarea.id}>
+                      <td colSpan={6} className="p-3 font-bold border border-gray-300">
+                        {editandoId === tarea.id ? (
+                          <input
+                            type="text"
+                            value={editandoNombre}
+                            onChange={(e) => setEditandoNombre(e.target.value)}
+                            className="w-full bg-white text-black px-2 py-1 rounded"
+                            onKeyPress={(e) => e.key === 'Enter' && guardarEdicion(tarea.id)}
+                          />
+                        ) : (
+                          <>{tarea.nombre} - {fechaMostrar}</>
+                        )}
+                      </td>
+                      <td colSpan={2} className="p-2 border border-gray-300 text-center">
+                        {editandoId === tarea.id ? (
+                          <button onClick={() => guardarEdicion(tarea.id)} className="bg-green-500 px-3 py-1 rounded mr-2">
+                            <Save size={16} />
+                          </button>
+                        ) : (
+                          <button 
+                            onClick={() => { setEditandoId(tarea.id); setEditandoNombre(tarea.nombre); }}
+                            className="bg-yellow-500 hover:bg-yellow-600 px-3 py-1 rounded mr-2"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => eliminarItem(tarea.id)}
+                          className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </FilaArrastrable>
+                  );
+                }
+
+                const retraso = calcularRetraso(tarea);
+                const tareaIndex = tareas.findIndex(t => t.id === tarea.id);
+                const bgColor = tareaIndex % 2 === 0 ? 'bg-gray-50' : 'bg-white';
+                const estaExpandida = tareaExpandida === tarea.id;
+
+                return (
+  <React.Fragment key={tarea.id}>
+    <FilaArrastrable id={tarea.id}>
+                      <td className="p-3 border border-gray-200 pl-8">
+                        {editandoId === tarea.id ? (
+                          <input
+                            type="text"
+                            value={editandoNombre}
+                            onChange={(e) => setEditandoNombre(e.target.value)}
+                            className="w-full border border-gray-300 px-2 py-1 rounded"
+                            onKeyPress={(e) => e.key === 'Enter' && guardarEdicion(tarea.id)}
+                          />
+                        ) : (
+                          tarea.nombre
+                        )}
+                      </td>
+                      <td className="p-2 border border-gray-200 text-center">
+                        <input
+                          type="text"
+                          value={tarea.duracion || ''}
+                          onChange={(e) => actualizarTarea(tarea.id, 'duracion', e.target.value)}
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-xs text-center"
+                          placeholder="5 días"
+                        />
+                      </td>
+                      <td className="p-2 border border-gray-200">
+                        <input 
+                          type="date"
+                          value={tarea.inicio || ''}
+                          onChange={(e) => actualizarTarea(tarea.id, 'inicio', e.target.value)}
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                        />
+                        <div className="text-xs text-gray-600 mt-1">{formatearFecha(tarea.inicio)}</div>
+                      </td>
+                      <td className="p-2 border border-gray-200">
+                        <input 
+                          type="date"
+                          value={tarea.fin || ''}
+                          onChange={(e) => actualizarTarea(tarea.id, 'fin', e.target.value)}
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                        />
+                        <div className="text-xs text-gray-600 mt-1">{formatearFecha(tarea.fin)}</div>
+                      </td>
+                      <td className="p-2 border border-gray-200">
+                        <input 
+                          type="date"
+                          value={tarea.entrega || ''}
+                          onChange={(e) => actualizarTarea(tarea.id, 'entrega', e.target.value)}
+                          className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                        />
+                        <div className="text-xs text-gray-600 mt-1">{formatearFecha(tarea.entrega)}</div>
+                      </td>
+                      <td className="p-2 border border-gray-200 text-center">
+                        <select
+                          value={tarea.estado}
+                          onChange={(e) => actualizarTarea(tarea.id, 'estado', e.target.value as Tarea['estado'])}
+                          style={{ backgroundColor: getColorEstado(tarea.estado) }}
+                          className="w-full text-white font-bold rounded-full px-2 py-1 text-xs cursor-pointer"
+                        >
+                          <option value="Pendiente">Pendiente</option>
+                          <option value="En Curso">En Curso</option>
+                          <option value="Finalizada">Finalizada</option>
+                          <option value="Retrasada">Retrasada</option>
+                          <option value="Por definir">Por definir</option>
+                        </select>
+                      </td>
+                      <td className="p-3 border border-gray-200 text-center font-bold text-sm" style={{ color: retraso > 0 ? '#e74c3c' : '#666' }}>
+                        {retraso > 0 ? `${retraso} días` : '-'}
+                      </td>
+                      <td className="p-2 border border-gray-200 text-center">
+                        <div className="flex gap-1 justify-center">
+                          {editandoId === tarea.id ? (
+                            <button
+                              onClick={() => guardarEdicion(tarea.id)}
+                              className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs"
+                            >
+                              <Save size={14} />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => { setEditandoId(tarea.id); setEditandoNombre(tarea.nombre); }}
+                              className="bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setTareaExpandida(estaExpandida ? null : tarea.id)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs"
+                          >
+                            {estaExpandida ? '▲' : '▼'}
+                          </button>
+                          <button
+                            onClick={() => eliminarItem(tarea.id)}
+                            className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </FilaArrastrable>
+                    {estaExpandida && (
+                      <tr className={bgColor}>
+                        <td colSpan={8} className="p-4 border border-gray-200 bg-yellow-50">
+                          <div className="mb-2">
+                            <label className="block text-sm font-bold text-gray-700 mb-1">Comentarios / Notas:</label>
+                            <textarea
+                              value={tarea.comentarios || ''}
+                              onChange={(e) => actualizarTarea(tarea.id, 'comentarios', e.target.value)}
+                              placeholder="Escribe comentarios, notas o detalles sobre esta tarea..."
+                              className="w-full border border-gray-300 rounded px-3 py-2 text-sm h-24 resize-none"
+                            />
+                          </div>
+                          <div className="text-xs text-gray-600">
+                            Los comentarios se guardan automáticamente en Firebase
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+         </table>
+    </SortableContext>
+  </DndContext>
+</div>
       </div>
     </div>
   );
