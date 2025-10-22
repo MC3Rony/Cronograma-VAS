@@ -282,8 +282,7 @@ const CronogramaProyecto: React.FC = () => {
                 <Calendar size={32} />
                 <h1 className="text-3xl font-bold">Cronograma del Proyecto</h1>
               </div>
-              <p className="text-blue-100">Fecha actual: <strong>{formatearFechaCompleta(fechaActual)}</strong></p>
-              <p className="text-blue-200 text-sm mt-1">Sincronizado con Firebase</p>
+              <p className="text-blue-100">Fecha: <strong>{formatearFechaCompleta(fechaActual)}</strong></p>
             </div>
           </div>
           {/* Estadísticas */}
