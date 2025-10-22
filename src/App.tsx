@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Save, Plus, Trash2, Edit2, Download, Upload } from 'lucide-react';
 import { db } from './firebase';
-import { collection, doc, setDoc, getDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 interface Tarea {
   id: number;
