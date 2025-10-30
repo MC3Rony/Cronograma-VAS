@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { Header } from './components/Header';
 import { Estadisticas } from './components/Estadisticas';
 import { Controles } from './components/Controles';
 import { useFechaActual } from './hooks/useFechaActual';
 import { useFirebase } from './hooks/useFirebase';
 import { useTareas } from './hooks/useTareas';
+import { usePropagacionRetrasos } from './hooks/usePropagacionRetrasos';
 import { calcularEstadisticas } from './utils/calculationUtils';
-import { propagarRetrasos, limpiarFechasPorDefinir } from './utils/dependencyUtils';
 import type { TipoEstado } from './types';
 import './App.css';
 
@@ -22,9 +22,14 @@ const CronogramaProyecto: React.FC = () => {
 
   const [filtroEstado, setFiltroEstado] = useState<TipoEstado>('todos');
 
-  // TODO: Implementar propagación automática sin bucles infinitos
-  // La propagación automática fue deshabilitada temporalmente porque causaba bucles infinitos con Firebase
-  // Por ahora, la propagación de retrasos debe hacerse manualmente
+  // Propagación automática de retrasos (sin bucles infinitos)
+  usePropagacionRetrasos({
+    tareas,
+    fechaActual,
+    cargando,
+    setTareas,
+    guardarEnFirebase
+  });
 
   // Filtrar por estado (memoizado)
   const tareasFiltradas = useMemo(() => {
