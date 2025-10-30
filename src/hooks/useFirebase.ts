@@ -27,9 +27,9 @@ export const useFirebase = () => {
         if (docSnap.exists()) {
           const data = docSnap.data().lista;
           if (Array.isArray(data)) {
-            // Solo actualizar si los datos son diferentes y no estamos guardando
+            // Solo actualizar si los datos son diferentes
             const dataString = JSON.stringify(data);
-            if (dataString !== ultimasTareasRef.current && !guardandoRef.current) {
+            if (dataString !== ultimasTareasRef.current) {
               ultimasTareasRef.current = dataString;
               setTareas(data);
               setError(null);
@@ -38,12 +38,8 @@ export const useFirebase = () => {
             throw new Error('Datos inválidos en Firebase');
           }
         } else {
-          // Si no existe, crear documento inicial
-          setDoc(docRef, { lista: datosIniciales }).catch((err) => {
-            console.error('Error al crear documento inicial:', err);
-            setError('Error al inicializar Firebase');
-          });
-          setTareas(datosIniciales);
+          // Documento no existe - mantener datos locales
+          console.warn('No se encontraron datos en Firebase');
         }
         setCargando(false);
       } catch (err) {
