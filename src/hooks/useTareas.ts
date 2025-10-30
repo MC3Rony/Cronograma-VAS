@@ -3,6 +3,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import type { Tarea, TipoElemento } from '../types';
 import { limpiarTareaYDependientes } from '../utils/dependencyUtils';
+import { registrarCambioManual } from './usePropagacionRetrasos';
 
 interface UseTareasProps {
   tareas: Tarea[];
@@ -51,6 +52,9 @@ export const useTareas = ({ tareas, setTareas, guardarEnFirebase }: UseTareasPro
     if (campo === 'estado' && tareaActual) {
       const estadoAnterior = tareaActual.estado;
       const estadoNuevo = valor as Tarea['estado'];
+
+      // Registrar cambio manual para que la propagación automática lo respete
+      registrarCambioManual(id);
 
       // Si la tarea estaba retrasada y ahora cambia a otro estado, limpiar dependientes
       if (estadoAnterior === 'Retrasada' && estadoNuevo !== 'Retrasada') {

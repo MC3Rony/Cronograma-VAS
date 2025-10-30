@@ -10,6 +10,9 @@ interface UsePropagacionRetrasosProps {
   guardarEnFirebase: (tareas: Tarea[]) => Promise<void>;
 }
 
+// Map global para rastrear cambios manuales recientes (ID tarea -> timestamp)
+const cambiosManualesRecientes = new Map<number, number>();
+
 /**
  * Hook personalizado para manejar la propagación automática de retrasos
  * sin causar bucles infinitos con Firebase
@@ -47,8 +50,30 @@ export const usePropagacionRetrasos = ({
         return;
       }
 
+      // Limpiar cambios manuales antiguos (más de 10 segundos)
+      const ahora = Date.now();
+      const DURACION_EXCEPCION = 10000; // 10 segundos
+      for (const [id, timestamp] of cambiosManualesRecientes.entries()) {
+        if (ahora - timestamp > DURACION_EXCEPCION) {
+          cambiosManualesRecientes.delete(id);
+        }
+      }
+
       // Aplicar propagación de retrasos
       let tareasActualizadas = propagarRetrasos(tareas, fechaActual);
+
+      // Restaurar estados de tareas con cambios manuales recientes
+      tareasActualizadas = tareasActualizadas.map(tareaActualizada => {
+        if (cambiosManualesRecientes.has(tareaActualizada.id)) {
+          // Buscar el estado original (el que el usuario estableció)
+          const tareaOriginal = tareas.find(t => t.id === tareaActualizada.id);
+          if (tareaOriginal && tareaOriginal.estado !== tareaActualizada.estado) {
+            // Mantener el estado que el usuario estableció manualmente
+            return { ...tareaActualizada, estado: tareaOriginal.estado };
+          }
+        }
+        return tareaActualizada;
+      });
 
       // Limpiar fechas de tareas "Por definir"
       tareasActualizadas = limpiarFechasPorDefinir(tareasActualizadas);
@@ -117,4 +142,12 @@ export const usePropagacionRetrasos = ({
   return {
     forzarPropagacion: aplicarPropagacion
   };
+};
+
+/**
+ * Registra un cambio manual en una tarea para que la propagación automática
+ * lo respete durante los próximos 10 segundos
+ */
+export const registrarCambioManual = (tareaId: number) => {
+  cambiosManualesRecientes.set(tareaId, Date.now());
 };
