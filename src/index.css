@@ -1,1 +1,47 @@
 @import "tailwindcss";
+
+/* Estilos para scrollbar mejorado en móviles y desktop */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #9CA3AF #E5E7EB;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #E5E7EB;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #9CA3AF;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #6B7280;
+}
+
+/* Mejoras para táctil en móviles */
+@media (max-width: 768px) {
+  /* Hacer los inputs más fáciles de tocar */
+  input, select, textarea, button {
+    touch-action: manipulation;
+  }
+
+  /* Prevenir zoom al hacer foco en inputs en iOS */
+  input[type="text"],
+  input[type="date"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Animación suave para transiciones */
+* {
+  -webkit-tap-highlight-color: transparent;
+}

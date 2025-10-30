@@ -6,12 +6,12 @@ import { getFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyAtrTWcijATOER6k3GKJgoFE8EkQZdeLK8",
-  authDomain: "cronograma-proyecto.firebaseapp.com",
-  projectId: "cronograma-proyecto",
-  storageBucket: "cronograma-proyecto.firebasestorage.app",
-  messagingSenderId: "169185109215",
-  appId: "1:169185109215:web:3e05fb00ac131498f9f56a"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
